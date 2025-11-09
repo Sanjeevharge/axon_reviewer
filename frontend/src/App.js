@@ -83,18 +83,24 @@ export default function App() {
       .get(`http://localhost:5000/get-note/${imgName}`)
       .then((res) => setNote(res.data.note))
       .catch(() => setNote(""));
+
+    axios
+      .get(`http://localhost:5000/get-axon-type/${imgName}`)
+      .then((res) => setSelectedAxonType(res.data.type))
+      .catch(() => setSelectedAxonType(""));
   }, [currentIndex, imagePairs]);
 
   // ----------------------------
   // Save note + type + clean logging
   // ----------------------------
-  const saveNote = async () => {
+  const handleAxonTypeChange = async (newType) => {
+    setSelectedAxonType(newType);
+
     if (!imagePairs.length) return;
 
     const pair = imagePairs[currentIndex];
     const imgNameFromFile = pair.id;
 
-    // Find Excel metadata row
     const metadataRow = excelData.find(
       (row) => String(row.axon_id) === imgNameFromFile,
     );
@@ -107,44 +113,54 @@ export default function App() {
     const axon_id = metadataRow.axon_id;
     const image_name = metadataRow.image_name;
     const oldType = metadataRow.axon_type;
-    const newType = selectedAxonType || "";
-
-    const noteText = note.trim();
-
-    // Determine event
-    let eventType = "";
-    if (noteText && newType) eventType = "Type + Note Update";
-    else if (noteText) eventType = "Note Update";
-    else if (newType) eventType = "Type Update";
-    else eventType = "Empty";
-
-    // Always save note in DB
-    await axios.post("http://localhost:5000/saveNote", {
-      image_id: imgNameFromFile,
-      note: noteText,
-    });
-
-    // Logging rules:
-    let logNote = noteText;
-    let logNewType = newType;
-
-    if (noteText && !newType) {
-      logNewType = "";
-    }
-    if (newType && !noteText) {
-      logNote = "";
-    }
 
     await axios.post("http://localhost:5000/log-axon-change", {
       axon_id,
       image_name,
       oldType,
-      newType: logNewType,
-      notes: logNote,
-      eventType,
+      newType: newType,
+      notes: note.trim(),
     });
 
-    alert("✅ Saved!");
+    alert("✅ Axon type updated!");
+  };
+
+  // ----------------------------
+  // Save note
+  // ----------------------------
+  const saveNote = async () => {
+    if (!imagePairs.length) return;
+
+    const pair = imagePairs[currentIndex];
+    const imgNameFromFile = pair.id;
+
+    await axios.post("http://localhost:5000/saveNote", {
+      image_id: imgNameFromFile,
+      note: note.trim(),
+    });
+
+    const metadataRow = excelData.find(
+      (row) => String(row.axon_id) === imgNameFromFile,
+    );
+
+    if (!metadataRow) {
+      alert("❌ axon_id not found in Excel for this image");
+      return;
+    }
+
+    const axon_id = metadataRow.axon_id;
+    const image_name = metadataRow.image_name;
+    const oldType = metadataRow.axon_type;
+
+    await axios.post("http://localhost:5000/log-axon-change", {
+      axon_id,
+      image_name,
+      oldType,
+      newType: selectedAxonType,
+      notes: note.trim(),
+    });
+
+    alert("✅ Note saved!");
   };
 
   // ----------------------------
@@ -332,7 +348,7 @@ export default function App() {
                   </label>
                   <select
                     value={selectedAxonType}
-                    onChange={(e) => setSelectedAxonType(e.target.value)}
+                    onChange={(e) => handleAxonTypeChange(e.target.value)}
                     className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">-- Choose a type --</option>
@@ -356,7 +372,7 @@ export default function App() {
                   onClick={saveNote}
                   className="btn btn-primary w-full mt-4"
                 >
-                  💾 Save Note & Type
+                  💾 Save Note
                 </button>
               </div>
             </div>

@@ -52,7 +52,7 @@ app.post("/saveNote", (req, res) => {
     (err) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ success: true });
-    }
+    },
   );
 });
 
@@ -63,7 +63,7 @@ app.get("/get-note/:id", (req, res) => {
     (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ note: row ? row.note : "" });
-    }
+    },
   );
 });
 
@@ -71,18 +71,17 @@ app.get("/get-note/:id", (req, res) => {
 // 5. Log ALL changes cleanly
 // --------------------------
 app.post("/log-axon-change", (req, res) => {
-  const { axon_id, image_name, oldType, newType, notes, eventType } = req.body;
+  const { axon_id, image_name, oldType, newType, notes } = req.body;
 
   const logFile = "axon_changes.xlsx";
   const logRow = [
     {
-      "axon_id": axon_id,
-      "image_name": image_name,
-      "old axon type": oldType || "",
-      "new axon type": newType || "",
-      "notes": notes || "",
-      "timestamp": new Date().toISOString()
-    }
+      image_name: image_name,
+      axon_id: axon_id,
+      old_axon_type: oldType || "",
+      new_axon_type: newType || "",
+      notes: notes || "",
+    },
   ];
 
   let workbook, worksheet;
@@ -92,7 +91,7 @@ app.post("/log-axon-change", (req, res) => {
     worksheet = workbook.Sheets[workbook.SheetNames[0]];
     xlsx.utils.sheet_add_json(worksheet, logRow, {
       skipHeader: true,
-      origin: -1
+      origin: -1,
     });
   } else {
     workbook = xlsx.utils.book_new();
@@ -114,7 +113,29 @@ app.get("/download-axon-changes", (req, res) => {
   res.download(filePath, "axon_changes.xlsx");
 });
 
+app.get("/get-axon-type/:id", (req, res) => {
+  const logFile = "axon_changes.xlsx";
+  if (!fs.existsSync(logFile)) {
+    return res.json({ type: "" });
+  }
+
+  const workbook = xlsx.readFile(logFile);
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  const data = xlsx.utils.sheet_to_json(worksheet);
+
+  const axonEntries = data.filter(
+    (row) => String(row.axon_id) === req.params.id,
+  );
+
+  if (axonEntries.length > 0) {
+    const lastEntry = axonEntries[axonEntries.length - 1];
+    res.json({ type: lastEntry["new axon type"] || "" });
+  } else {
+    res.json({ type: "" });
+  }
+});
+
 // -------------------------
 app.listen(5000, () =>
-  console.log("✅ Backend running on http://localhost:5000")
+  console.log("✅ Backend running on http://localhost:5000"),
 );
