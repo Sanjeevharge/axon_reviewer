@@ -2,85 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Modern app background and typography */
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+
 :root {
-  --bg: #f9fafb;
-  --text: #111827;
-  --card-bg: #ffffff;
-  --accent: #2563eb;
-  --border: #e5e7eb;
+    --bg-color: #f9fafb;
+    --text-color: #1f2937;
+    --card-bg-color: #ffffff;
+    --primary-color: #4f46e5;
+    --primary-hover-color: #4338ca;
+    --secondary-color: #6b7280;
+    --secondary-hover-color: #4b5563;
+    --border-color: #e5e7eb;
+    --success-color: #16a34a;
+    --success-hover-color: #15803d;
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  margin: 0;
-  padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family:
+        "Inter",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
 }
 
-/* Card style */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+/* ==========================================================================
+   Components
+   ========================================================================== */
+
+/* File Input */
+.file-input {
+    @apply w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100;
 }
 
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-}
-
-/* Button */
+/* Buttons */
 .btn {
-  background-color: var(--accent);
-  color: white;
-  padding: 0.5rem 1.25rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+    @apply px-4 py-2 rounded-md font-semibold text-white shadow-sm transition-colors duration-200;
 }
 
-.btn:hover {
-  background-color: #1e40af;
+.btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-700;
 }
 
-/* Image wrapper */
-.image-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #f3f4f6;
-  border-radius: 0.75rem;
-  overflow: hidden;
-  border: 1px solid var(--border);
+.btn-secondary {
+    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
 }
 
-.image-container img {
-  max-width: 100%;
-  height: auto;
-  object-fit: contain;
-}
-.image-container {
-  position: relative;
-  display: inline-block;
-  overflow: hidden;
-  border-radius: 12px;
+.btn-success {
+    @apply bg-green-600 hover:bg-green-700;
 }
 
-.zoom-controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 10; /* ensures icons appear above the image */
-  background: rgba(255, 255, 255, 0.8);
-  padding: 4px;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+/* Zoom Buttons */
+.zoom-btn {
+    @apply w-8 h-8 flex items-center justify-center bg-gray-800 bg-opacity-50 text-white rounded-md hover:bg-opacity-75 transition-all;
+}
+
+/* ==========================================================================
+   App Layout
+   ========================================================================== */
+
+.container {
+    @apply max-w-7xl;
 }

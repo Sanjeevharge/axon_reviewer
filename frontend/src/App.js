@@ -26,7 +26,10 @@ export default function App() {
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:5000/upload-excel", formData);
+      const res = await axios.post(
+        "http://localhost:5000/upload-excel",
+        formData,
+      );
       setExcelData(res.data.data);
       setLoading(false);
     } catch (err) {
@@ -37,12 +40,16 @@ export default function App() {
 
   // ----------------------------
   const handleRawUpload = (e) => {
-    const files = Array.from(e.target.files).filter((f) => f.type.startsWith("image/"));
+    const files = Array.from(e.target.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
     setRawImages(files);
   };
 
   const handleDetectedUpload = (e) => {
-    const files = Array.from(e.target.files).filter((f) => f.type.startsWith("image/"));
+    const files = Array.from(e.target.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
     setDetectedImages(files);
   };
 
@@ -89,7 +96,7 @@ export default function App() {
 
     // Find Excel metadata row
     const metadataRow = excelData.find(
-      (row) => String(row.axon_id) === imgNameFromFile
+      (row) => String(row.axon_id) === imgNameFromFile,
     );
 
     if (!metadataRow) {
@@ -114,7 +121,7 @@ export default function App() {
     // Always save note in DB
     await axios.post("http://localhost:5000/saveNote", {
       image_id: imgNameFromFile,
-      note: noteText
+      note: noteText,
     });
 
     // Logging rules:
@@ -134,7 +141,7 @@ export default function App() {
       oldType,
       newType: logNewType,
       notes: logNote,
-      eventType
+      eventType,
     });
 
     alert("✅ Saved!");
@@ -145,8 +152,7 @@ export default function App() {
   // ----------------------------
   const nextImage = () =>
     setCurrentIndex((p) => Math.min(p + 1, imagePairs.length - 1));
-  const prevImage = () =>
-    setCurrentIndex((p) => Math.max(p - 1, 0));
+  const prevImage = () => setCurrentIndex((p) => Math.max(p - 1, 0));
 
   const pair = imagePairs[currentIndex];
   const metadataRow =
@@ -162,145 +168,222 @@ export default function App() {
   const resetZoomDetected = () => setZoomDetected(1);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <h1 className="text-3xl font-bold text-center text-indigo-700 mb-10">
-        🧠 Axon Review System
-      </h1>
-
-      {/* Upload Section */}
-      <div className="flex flex-col md:flex-row gap-4 justify-center mb-10 bg-white shadow-md rounded-xl p-6">
-        
-        <div className="flex flex-col items-center w-full">
-          <label className="text-sm font-medium">Excel File</label>
-          <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className="border p-2 rounded w-full" />
+    <div className="min-h-screen bg-gray-100 text-gray-800">
+      <header className="bg-white shadow-md">
+        <div className="container mx-auto px-6 py-4">
+          <h1 className="text-3xl font-bold text-indigo-600">
+            🧠 Axon Review System
+          </h1>
         </div>
+      </header>
 
-        <div className="flex flex-col items-center w-full">
-          <label className="text-sm font-medium">Raw Images Folder</label>
-          <input type="file" webkitdirectory="true" multiple onChange={handleRawUpload} className="border p-2 rounded w-full" />
-        </div>
-
-        <div className="flex flex-col items-center w-full">
-          <label className="text-sm font-medium">Detected Images Folder</label>
-          <input type="file" webkitdirectory="true" multiple onChange={handleDetectedUpload} className="border p-2 rounded w-full" />
-        </div>
-
-      </div>
-
-      {loading && <p className="text-center text-gray-500">Loading Excel...</p>}
-
-      {imagePairs.length > 0 && (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-
-          {/* Navigation */}
-          <div className="flex justify-between items-center mb-6">
-            <button onClick={prevImage} className="bg-gray-200 px-4 py-2 rounded">◀ Prev</button>
-            <span>{currentIndex + 1} / {imagePairs.length}</span>
-            <button onClick={nextImage} className="bg-gray-200 px-4 py-2 rounded">Next ▶</button>
-          </div>
-
-          {/* Raw + Detected Images */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-
-            {/* Raw */}
-            <div className="flex flex-col items-center">
-              <h2 className="text-lg font-semibold text-indigo-700 mb-2">Raw Image</h2>
-              <div className="relative bg-gray-100 p-2 rounded border shadow-sm w-[400px] h-[400px] overflow-hidden flex items-center justify-center">
-                <img
-                  src={URL.createObjectURL(pair.raw)}
-                  alt="raw"
-                  style={{ transform: `scale(${zoomRaw})`, transition: "0.2s", transformOrigin: "center" }}
-                  className="max-w-full max-h-full object-contain"
-                />
-                <div className="absolute bottom-2 right-2 bg-white rounded shadow flex flex-col">
-                  <button onClick={zoomInRaw}>+</button>
-                  <button onClick={resetZoomRaw}>100%</button>
-                  <button onClick={zoomOutRaw}>-</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Detected */}
-            <div className="flex flex-col items-center">
-              <h2 className="text-lg font-semibold text-indigo-700 mb-2">Detected Image</h2>
-              <div className="relative bg-gray-100 p-2 rounded border shadow-sm w-[400px] h-[400px] overflow-hidden flex items-center justify-center">
-                <img
-                  src={URL.createObjectURL(pair.detected)}
-                  alt="detected"
-                  style={{ transform: `scale(${zoomDetected})`, transition: "0.2s", transformOrigin: "center" }}
-                  className="max-w-full max-h-full object-contain"
-                />
-                <div className="absolute bottom-2 right-2 bg-white rounded shadow flex flex-col">
-                  <button onClick={zoomInDetected}>+</button>
-                  <button onClick={resetZoomDetected}>100%</button>
-                  <button onClick={zoomOutDetected}>-</button>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Metadata + Notes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* Metadata */}
-            <div className="bg-gray-50 border rounded-xl p-4">
-              <h2 className="text-lg font-semibold text-indigo-700 mb-3">📋 Excel Metadata</h2>
-
-              {metadataRow ? (
-                <div className="border bg-white p-3 rounded">
-                  <p><strong>axon_id:</strong> {metadataRow.axon_id}</p>
-                  <p><strong>image_name:</strong> {metadataRow.image_name}</p>
-                  <p><strong>axon_type:</strong> {metadataRow.axon_type}</p>
-                </div>
-              ) : (
-                <p className="text-gray-500">No metadata found.</p>
-              )}
-
-              {/* Type dropdown */}
-              <div className="mt-4">
-                <label className="text-sm">Select New Axon Type</label>
-                <select
-                  value={selectedAxonType}
-                  onChange={(e) => setSelectedAxonType(e.target.value)}
-                  className="border w-full p-2 rounded mt-1"
-                >
-                  <option value="">-- choose --</option>
-                  <option value="mature">mature</option>
-                  <option value="regrowth">regrowth</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="bg-gray-50 border rounded-xl p-4">
-              <h2 className="text-lg font-semibold text-indigo-700 mb-3">📝 Notes</h2>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="border w-full p-2 rounded h-28"
+      <main className="container mx-auto px-6 py-8">
+        {/* Upload Section */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+          <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+            Upload Files
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex flex-col">
+              <label className="text-sm font-medium mb-2">Excel File</label>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+                className="file-input"
               />
-              <button onClick={saveNote} className="w-full mt-3 bg-indigo-600 text-white py-2 rounded">
-                💾 Save Note
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium mb-2">
+                Raw Images Folder
+              </label>
+              <input
+                type="file"
+                webkitdirectory="true"
+                multiple
+                onChange={handleRawUpload}
+                className="file-input"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium mb-2">
+                Detected Images Folder
+              </label>
+              <input
+                type="file"
+                webkitdirectory="true"
+                multiple
+                onChange={handleDetectedUpload}
+                className="file-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        {loading && (
+          <p className="text-center text-gray-500">Loading Excel data...</p>
+        )}
+
+        {imagePairs.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            {/* Navigation */}
+            <div className="flex justify-between items-center mb-6">
+              <button onClick={prevImage} className="btn btn-secondary">
+                ◀ Prev
+              </button>
+              <span className="text-lg font-medium">
+                {currentIndex + 1} / {imagePairs.length}
+              </span>
+              <button onClick={nextImage} className="btn btn-secondary">
+                Next ▶
               </button>
             </div>
 
-            {/* Download at end */}
-            {currentIndex === imagePairs.length - 1 && (
-              <div className="text-center mt-6">
+            {/* Image Comparison */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              {/* Raw Image */}
+              <div className="flex flex-col items-center">
+                <h2 className="text-xl font-semibold text-indigo-600 mb-3">
+                  Raw Image
+                </h2>
+                <div className="relative w-full h-[400px] bg-gray-200 rounded-lg overflow-hidden shadow-inner">
+                  <img
+                    src={URL.createObjectURL(pair.raw)}
+                    alt="raw"
+                    style={{
+                      transform: `scale(${zoomRaw})`,
+                      transition: "transform 0.2s",
+                    }}
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-2 right-2 flex flex-col gap-1">
+                    <button onClick={zoomInRaw} className="zoom-btn">
+                      +
+                    </button>
+                    <button onClick={zoomOutRaw} className="zoom-btn">
+                      -
+                    </button>
+                    <button onClick={resetZoomRaw} className="zoom-btn">
+                      1x
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detected Image */}
+              <div className="flex flex-col items-center">
+                <h2 className="text-xl font-semibold text-indigo-600 mb-3">
+                  Detected Image
+                </h2>
+                <div className="relative w-full h-[400px] bg-gray-200 rounded-lg overflow-hidden shadow-inner">
+                  <img
+                    src={URL.createObjectURL(pair.detected)}
+                    alt="detected"
+                    style={{
+                      transform: `scale(${zoomDetected})`,
+                      transition: "transform 0.2s",
+                    }}
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-2 right-2 flex flex-col gap-1">
+                    <button onClick={zoomInDetected} className="zoom-btn">
+                      +
+                    </button>
+                    <button onClick={zoomOutDetected} className="zoom-btn">
+                      -
+                    </button>
+                    <button onClick={resetZoomDetected} className="zoom-btn">
+                      1x
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metadata & Notes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="bg-gray-50 rounded-lg p-6 shadow-inner">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">
+                  📋 Excel Metadata
+                </h2>
+                {metadataRow ? (
+                  <div className="space-y-2">
+                    <p>
+                      <strong>Axon ID:</strong> {metadataRow.axon_id}
+                    </p>
+                    <p>
+                      <strong>Image Name:</strong> {metadataRow.image_name}
+                    </p>
+                    <p>
+                      <strong>Axon Type:</strong>{" "}
+                      <span className="font-semibold text-indigo-600">
+                        {metadataRow.axon_type}
+                      </span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-gray-500">
+                    No metadata found for this image.
+                  </p>
+                )}
+                <div className="mt-6">
+                  <label className="block text-sm font-medium mb-2">
+                    Select New Axon Type
+                  </label>
+                  <select
+                    value={selectedAxonType}
+                    onChange={(e) => setSelectedAxonType(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">-- Choose a type --</option>
+                    <option value="mature">Mature</option>
+                    <option value="regrowth">Regrowth</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-6 shadow-inner">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">
+                  📝 Notes
+                </h2>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md h-32 resize-none focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Enter your notes here..."
+                />
                 <button
-                  onClick={() => window.location.href = "http://localhost:5000/download-axon-changes"}
-                  className="bg-green-600 text-white py-3 px-6 rounded"
+                  onClick={saveNote}
+                  className="btn btn-primary w-full mt-4"
+                >
+                  💾 Save Note & Type
+                </button>
+              </div>
+            </div>
+
+            {/* Download Button */}
+            {currentIndex === imagePairs.length - 1 && (
+              <div className="text-center mt-8">
+                <button
+                  onClick={() =>
+                    (window.location.href =
+                      "http://localhost:5000/download-axon-changes")
+                  }
+                  className="btn btn-success"
                 >
                   📥 Download Axon Change Log
                 </button>
               </div>
             )}
-
           </div>
+        )}
+      </main>
 
+      <footer className="bg-white shadow-inner mt-8">
+        <div className="container mx-auto px-6 py-4 text-center text-gray-500">
+          <p>&copy; 2025 Axon Review System. All rights reserved.</p>
         </div>
-      )}
+      </footer>
     </div>
   );
 }
