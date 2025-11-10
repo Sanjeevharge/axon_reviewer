@@ -78,6 +78,7 @@ export default function App() {
     if (!imagePairs.length) return;
 
     const imgName = imagePairs[currentIndex].id;
+    setLastSavedAxonType(null); // Reset on image change
 
     axios
       .get(`http://localhost:5000/get-note/${imgName}`)
@@ -93,6 +94,15 @@ export default function App() {
   // ----------------------------
   // Save note + type + clean logging
   // ----------------------------
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (message) => {
+    setNotification(message);
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
+
   const handleAxonTypeChange = async (newType) => {
     setSelectedAxonType(newType);
 
@@ -106,7 +116,7 @@ export default function App() {
     );
 
     if (!metadataRow) {
-      alert("❌ axon_id not found in Excel for this image");
+      showNotification("❌ Axon ID not found in Excel for this image");
       return;
     }
 
@@ -122,12 +132,9 @@ export default function App() {
       notes: note.trim(),
     });
 
-    alert("✅ Axon type updated!");
+    showNotification("✅ Axon type updated!");
   };
 
-  // ----------------------------
-  // Save note
-  // ----------------------------
   const saveNote = async () => {
     if (!imagePairs.length) return;
 
@@ -144,7 +151,7 @@ export default function App() {
     );
 
     if (!metadataRow) {
-      alert("❌ axon_id not found in Excel for this image");
+      showNotification("❌ Axon ID not found in Excel for this image");
       return;
     }
 
@@ -160,7 +167,7 @@ export default function App() {
       notes: note.trim(),
     });
 
-    alert("✅ Note saved!");
+    showNotification("✅ Note saved!");
   };
 
   // ----------------------------
@@ -183,25 +190,96 @@ export default function App() {
   const zoomOutDetected = () => setZoomDetected((z) => Math.max(z - 0.2, 0.5));
   const resetZoomDetected = () => setZoomDetected(1);
 
+  const [showUpload, setShowUpload] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAxonType, setLastSavedAxonType] = useState(null);
+
+  // A new save function that handles both note and type changes
+  const handleSave = async () => {
+    if (!imagePairs.length) return;
+    setIsSaving(true);
+
+    const pair = imagePairs[currentIndex];
+    const imgNameFromFile = pair.id;
+
+    const metadataRow = excelData.find(
+      (row) => String(row.axon_id) === imgNameFromFile,
+    );
+
+    if (!metadataRow) {
+      showNotification("❌ Axon ID not found in Excel for this image");
+      setIsSaving(false);
+      return;
+    }
+
+    // Save note to the database
+    await axios.post("http://localhost:5000/saveNote", {
+      image_id: imgNameFromFile,
+      note: note.trim(),
+    });
+
+    // Log the change to the Excel file
+    await axios.post("http://localhost:5000/log-axon-change", {
+      axon_id: metadataRow.axon_id,
+      image_name: metadataRow.image_name,
+      oldType: metadataRow.axon_type,
+      newType: selectedAxonType,
+      notes: note.trim(),
+    });
+
+    setLastSavedAxonType(selectedAxonType);
+    showNotification("✅ Changes saved successfully!");
+    setIsSaving(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800">
-      <header className="bg-white shadow-md">
-        <div className="container mx-auto px-6 py-4">
-          <h1 className="text-3xl font-bold text-indigo-600">
-            🧠 Axon Review System
-          </h1>
+    <div className="h-screen w-screen flex flex-col font-sans bg-white text-black">
+      {notification && (
+        <div className="absolute top-5 right-5 bg-black text-white px-4 py-2 rounded-md shadow-lg z-50 fade-in">
+          {notification}
+        </div>
+      )}
+
+      <header className="flex-shrink-0 border-b border-gray-200">
+        <div className="container mx-auto px-4 py-2 flex items-center justify-between">
+          <h1 className="text-lg font-bold">🧠 Axon Review</h1>
+          <div className="flex items-center gap-3">
+            {imagePairs.length > 0 && (
+              <>
+                <span className="text-sm font-medium">
+                  {currentIndex + 1} / {imagePairs.length}
+                </span>
+                <button
+                  onClick={prevImage}
+                  className="btn btn-secondary text-xs"
+                >
+                  ◀ Prev
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="btn btn-secondary text-xs"
+                >
+                  Next ▶
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setShowUpload(!showUpload)}
+              className="btn btn-secondary text-xs"
+            >
+              {showUpload ? "Hide Upload" : "Show Upload"}
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
-        {/* Upload Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-700 mb-4">
-            Upload Files
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex flex-col">
-              <label className="text-sm font-medium mb-2">Excel File</label>
+      {showUpload && (
+        <div className="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-4 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold mb-1">
+                Excel File
+              </label>
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -209,9 +287,9 @@ export default function App() {
                 className="file-input"
               />
             </div>
-            <div className="flex flex-col">
-              <label className="text-sm font-medium mb-2">
-                Raw Images Folder
+            <div>
+              <label className="block text-xs font-semibold mb-1">
+                Raw Images
               </label>
               <input
                 type="file"
@@ -221,9 +299,9 @@ export default function App() {
                 className="file-input"
               />
             </div>
-            <div className="flex flex-col">
-              <label className="text-sm font-medium mb-2">
-                Detected Images Folder
+            <div>
+              <label className="block text-xs font-semibold mb-1">
+                Detected Images
               </label>
               <input
                 type="file"
@@ -235,171 +313,170 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
 
+      <main className="flex-grow flex overflow-hidden">
         {loading && (
-          <p className="text-center text-gray-500">Loading Excel data...</p>
+          <div className="w-full h-full flex items-center justify-center">
+            <p className="text-gray-500">Loading Excel data...</p>
+          </div>
+        )}
+
+        {!loading && imagePairs.length === 0 && (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <p>Please upload your files to begin reviewing.</p>
+          </div>
         )}
 
         {imagePairs.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            {/* Navigation */}
-            <div className="flex justify-between items-center mb-6">
-              <button onClick={prevImage} className="btn btn-secondary">
-                ◀ Prev
-              </button>
-              <span className="text-lg font-medium">
-                {currentIndex + 1} / {imagePairs.length}
-              </span>
-              <button onClick={nextImage} className="btn btn-secondary">
-                Next ▶
-              </button>
+          <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-px bg-gray-200">
+            {/* Raw Image */}
+            <div className="bg-white flex flex-col p-3">
+              <h2 className="text-base font-bold mb-2">Raw Image</h2>
+              <div className="flex-grow relative bg-gray-100 rounded-md overflow-auto">
+                <img
+                  src={URL.createObjectURL(pair.raw)}
+                  alt="raw"
+                  style={{
+                    transform: `scale(${zoomRaw})`,
+                    transformOrigin: "top left",
+                  }}
+                  className="block"
+                />
+              </div>
+              <div className="flex-shrink-0 pt-2 flex items-center justify-end gap-2">
+                <button onClick={zoomInRaw} className="zoom-btn text-xs">
+                  +
+                </button>
+                <button onClick={zoomOutRaw} className="zoom-btn text-xs">
+                  -
+                </button>
+                <button onClick={resetZoomRaw} className="zoom-btn text-xs">
+                  1x
+                </button>
+              </div>
             </div>
 
-            {/* Image Comparison */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              {/* Raw Image */}
-              <div className="flex flex-col items-center">
-                <h2 className="text-xl font-semibold text-indigo-600 mb-3">
-                  Raw Image
-                </h2>
-                <div className="relative w-full h-[400px] bg-gray-200 rounded-lg overflow-hidden shadow-inner">
-                  <img
-                    src={URL.createObjectURL(pair.raw)}
-                    alt="raw"
-                    style={{
-                      transform: `scale(${zoomRaw})`,
-                      transition: "transform 0.2s",
-                    }}
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute top-2 right-2 flex flex-col gap-1">
-                    <button onClick={zoomInRaw} className="zoom-btn">
-                      +
-                    </button>
-                    <button onClick={zoomOutRaw} className="zoom-btn">
-                      -
-                    </button>
-                    <button onClick={resetZoomRaw} className="zoom-btn">
-                      1x
-                    </button>
-                  </div>
-                </div>
+            {/* Detected Image */}
+            <div className="bg-white flex flex-col p-3">
+              <h2 className="text-base font-bold mb-2">Detected Image</h2>
+              <div className="flex-grow relative bg-gray-100 rounded-md overflow-auto">
+                <img
+                  src={URL.createObjectURL(pair.detected)}
+                  alt="detected"
+                  style={{
+                    transform: `scale(${zoomDetected})`,
+                    transformOrigin: "top left",
+                  }}
+                  className="block"
+                />
               </div>
-
-              {/* Detected Image */}
-              <div className="flex flex-col items-center">
-                <h2 className="text-xl font-semibold text-indigo-600 mb-3">
-                  Detected Image
-                </h2>
-                <div className="relative w-full h-[400px] bg-gray-200 rounded-lg overflow-hidden shadow-inner">
-                  <img
-                    src={URL.createObjectURL(pair.detected)}
-                    alt="detected"
-                    style={{
-                      transform: `scale(${zoomDetected})`,
-                      transition: "transform 0.2s",
-                    }}
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute top-2 right-2 flex flex-col gap-1">
-                    <button onClick={zoomInDetected} className="zoom-btn">
-                      +
-                    </button>
-                    <button onClick={zoomOutDetected} className="zoom-btn">
-                      -
-                    </button>
-                    <button onClick={resetZoomDetected} className="zoom-btn">
-                      1x
-                    </button>
-                  </div>
-                </div>
+              <div className="flex-shrink-0 pt-2 flex items-center justify-end gap-2">
+                <button onClick={zoomInDetected} className="zoom-btn text-xs">
+                  +
+                </button>
+                <button onClick={zoomOutDetected} className="zoom-btn text-xs">
+                  -
+                </button>
+                <button
+                  onClick={resetZoomDetected}
+                  className="zoom-btn text-xs"
+                >
+                  1x
+                </button>
               </div>
             </div>
 
             {/* Metadata & Notes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-gray-50 rounded-lg p-6 shadow-inner">
-                <h2 className="text-xl font-semibold text-gray-700 mb-4">
-                  📋 Excel Metadata
-                </h2>
-                {metadataRow ? (
-                  <div className="space-y-2">
-                    <p>
-                      <strong>Axon ID:</strong> {metadataRow.axon_id}
-                    </p>
-                    <p>
-                      <strong>Image Name:</strong> {metadataRow.image_name}
-                    </p>
-                    <p>
-                      <strong>Axon Type:</strong>{" "}
-                      <span className="font-semibold text-indigo-600">
-                        {metadataRow.axon_type}
-                      </span>
-                    </p>
+            <div className="bg-white flex flex-col p-3">
+              <div className="flex-grow flex flex-col gap-3">
+                <div>
+                  <h2 className="text-base font-bold mb-1">Metadata</h2>
+                  <div className="bg-gray-50 rounded-md p-2 text-xs space-y-1 border border-gray-200">
+                    {metadataRow ? (
+                      <>
+                        <p>
+                          <strong>Axon ID:</strong> {metadataRow.axon_id}
+                        </p>
+                        <p>
+                          <strong>Image Name:</strong> {metadataRow.image_name}
+                        </p>
+                        <p>
+                          <strong>Original Type:</strong>{" "}
+                          {metadataRow.axon_type}
+                        </p>
+                        {lastSavedAxonType && (
+                          <p>
+                            <strong>New Type:</strong> {lastSavedAxonType}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p>No metadata found.</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-gray-500">
-                    No metadata found for this image.
-                  </p>
-                )}
-                <div className="mt-6">
-                  <label className="block text-sm font-medium mb-2">
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1">
                     Select New Axon Type
                   </label>
-                  <select
-                    value={selectedAxonType}
-                    onChange={(e) => handleAxonTypeChange(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">-- Choose a type --</option>
-                    <option value="mature">Mature</option>
-                    <option value="regrowth">Regrowth</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSelectedAxonType("mature")}
+                      className={`btn text-sm w-full ${
+                        selectedAxonType === "mature"
+                          ? "btn-primary"
+                          : "btn-secondary"
+                      }`}
+                    >
+                      Mature
+                    </button>
+                    <button
+                      onClick={() => setSelectedAxonType("regrowth")}
+                      className={`btn text-sm w-full ${
+                        selectedAxonType === "regrowth"
+                          ? "btn-primary"
+                          : "btn-secondary"
+                      }`}
+                    >
+                      Regrowth
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-6 shadow-inner">
-                <h2 className="text-xl font-semibold text-gray-700 mb-4">
-                  📝 Notes
-                </h2>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md h-32 resize-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Enter your notes here..."
-                />
+                <div className="flex-grow flex flex-col">
+                  <label className="block text-xs font-semibold mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className="w-full flex-grow p-2 border border-gray-300 rounded-md resize-none text-sm"
+                    placeholder="Enter notes..."
+                  />
+                </div>
                 <button
-                  onClick={saveNote}
-                  className="btn btn-primary w-full mt-4"
+                  onClick={handleSave}
+                  className="btn btn-primary w-full"
+                  disabled={isSaving}
                 >
-                  💾 Save Note
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </button>
+                {currentIndex === imagePairs.length - 1 && (
+                  <button
+                    onClick={() =>
+                      (window.location.href =
+                        "http://localhost:5000/download-axon-changes")
+                    }
+                    className="btn btn-success w-full"
+                  >
+                    Download Log
+                  </button>
+                )}
               </div>
             </div>
-
-            {/* Download Button */}
-            {currentIndex === imagePairs.length - 1 && (
-              <div className="text-center mt-8">
-                <button
-                  onClick={() =>
-                    (window.location.href =
-                      "http://localhost:5000/download-axon-changes")
-                  }
-                  className="btn btn-success"
-                >
-                  📥 Download Axon Change Log
-                </button>
-              </div>
-            )}
           </div>
         )}
       </main>
-
-      <footer className="bg-white shadow-inner mt-8">
-        <div className="container mx-auto px-6 py-4 text-center text-gray-500">
-          <p>&copy; 2025 Axon Review System. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   );
 }
