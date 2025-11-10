@@ -113,6 +113,18 @@ app.get("/download-axon-changes", (req, res) => {
   res.download(filePath, "axon_changes.xlsx");
 });
 
+app.get("/get-all-axon-changes", (req, res) => {
+  const logFile = "axon_changes.xlsx";
+  if (!fs.existsSync(logFile)) {
+    return res.json({ data: [] });
+  }
+
+  const workbook = xlsx.readFile(logFile);
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  const data = xlsx.utils.sheet_to_json(worksheet);
+  res.json({ data });
+});
+
 app.get("/get-axon-type/:id", (req, res) => {
   const logFile = "axon_changes.xlsx";
   if (!fs.existsSync(logFile)) {
@@ -129,7 +141,7 @@ app.get("/get-axon-type/:id", (req, res) => {
 
   if (axonEntries.length > 0) {
     const lastEntry = axonEntries[axonEntries.length - 1];
-    res.json({ type: lastEntry["new axon type"] || "" });
+    res.json({ type: lastEntry["new_axon_type"] || "" });
   } else {
     res.json({ type: "" });
   }

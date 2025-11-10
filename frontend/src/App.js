@@ -71,104 +71,17 @@ export default function App() {
     setCurrentIndex(0);
   }, [rawImages, detectedImages]);
 
-  // ----------------------------
-  // Load note for current pair
-  // ----------------------------
+  const [axonTypeChanges, setAxonTypeChanges] = useState({});
+
   useEffect(() => {
-    if (!imagePairs.length) return;
-
-    const imgName = imagePairs[currentIndex].id;
-    setLastSavedAxonType(null); // Reset on image change
-
-    axios
-      .get(`http://localhost:5000/get-note/${imgName}`)
-      .then((res) => setNote(res.data.note))
-      .catch(() => setNote(""));
-
-    axios
-      .get(`http://localhost:5000/get-axon-type/${imgName}`)
-      .then((res) => setSelectedAxonType(res.data.type))
-      .catch(() => setSelectedAxonType(""));
-  }, [currentIndex, imagePairs]);
-
-  // ----------------------------
-  // Save note + type + clean logging
-  // ----------------------------
-  const [notification, setNotification] = useState(null);
-
-  const showNotification = (message) => {
-    setNotification(message);
-    setTimeout(() => {
-      setNotification(null);
-    }, 3000);
-  };
-
-  const handleAxonTypeChange = async (newType) => {
-    setSelectedAxonType(newType);
-
-    if (!imagePairs.length) return;
-
-    const pair = imagePairs[currentIndex];
-    const imgNameFromFile = pair.id;
-
-    const metadataRow = excelData.find(
-      (row) => String(row.axon_id) === imgNameFromFile,
-    );
-
-    if (!metadataRow) {
-      showNotification("❌ Axon ID not found in Excel for this image");
-      return;
-    }
-
-    const axon_id = metadataRow.axon_id;
-    const image_name = metadataRow.image_name;
-    const oldType = metadataRow.axon_type;
-
-    await axios.post("http://localhost:5000/log-axon-change", {
-      axon_id,
-      image_name,
-      oldType,
-      newType: newType,
-      notes: note.trim(),
+    axios.get("http://localhost:5000/get-all-axon-changes").then((res) => {
+      const changes = res.data.data.reduce((acc, change) => {
+        acc[change.axon_id] = change.new_axon_type;
+        return acc;
+      }, {});
+      setAxonTypeChanges(changes);
     });
-
-    showNotification("✅ Axon type updated!");
-  };
-
-  const saveNote = async () => {
-    if (!imagePairs.length) return;
-
-    const pair = imagePairs[currentIndex];
-    const imgNameFromFile = pair.id;
-
-    await axios.post("http://localhost:5000/saveNote", {
-      image_id: imgNameFromFile,
-      note: note.trim(),
-    });
-
-    const metadataRow = excelData.find(
-      (row) => String(row.axon_id) === imgNameFromFile,
-    );
-
-    if (!metadataRow) {
-      showNotification("❌ Axon ID not found in Excel for this image");
-      return;
-    }
-
-    const axon_id = metadataRow.axon_id;
-    const image_name = metadataRow.image_name;
-    const oldType = metadataRow.axon_type;
-
-    await axios.post("http://localhost:5000/log-axon-change", {
-      axon_id,
-      image_name,
-      oldType,
-      newType: selectedAxonType,
-      notes: note.trim(),
-    });
-
-    showNotification("✅ Note saved!");
-  };
+  }, []);
 
   // ----------------------------
   // Navigation + Zoom
@@ -190,9 +103,38 @@ export default function App() {
   const zoomOutDetected = () => setZoomDetected((z) => Math.max(z - 0.2, 0.5));
   const resetZoomDetected = () => setZoomDetected(1);
 
+  // ----------------------------
+  // Load note for current pair
+  // ----------------------------
+  useEffect(() => {
+    if (!imagePairs.length) return;
+
+    const imgName = imagePairs[currentIndex].id;
+
+    axios
+      .get(`http://localhost:5000/get-note/${imgName}`)
+      .then((res) => setNote(res.data.note))
+      .catch(() => setNote(""));
+
+    if (metadataRow) {
+      setSelectedAxonType(axonTypeChanges[metadataRow.axon_id] || "");
+    }
+  }, [currentIndex, imagePairs, axonTypeChanges, metadataRow]);
+
+  // ----------------------------
+  // Save note + type + clean logging
+  // ----------------------------
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (message) => {
+    setNotification(message);
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
+
   const [showUpload, setShowUpload] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [lastSavedAxonType, setLastSavedAxonType] = useState(null);
 
   // A new save function that handles both note and type changes
   const handleSave = async () => {
@@ -227,7 +169,11 @@ export default function App() {
       notes: note.trim(),
     });
 
-    setLastSavedAxonType(selectedAxonType);
+    setAxonTypeChanges({
+      ...axonTypeChanges,
+      [metadataRow.axon_id]: selectedAxonType,
+    });
+
     showNotification("✅ Changes saved successfully!");
     setIsSaving(false);
   };
@@ -235,7 +181,7 @@ export default function App() {
   return (
     <div className="h-screen w-screen flex flex-col font-sans bg-white text-black">
       {notification && (
-        <div className="absolute top-5 right-5 bg-black text-white px-4 py-2 rounded-md shadow-lg z-50 fade-in">
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-black text-white px-6 py-3 rounded-full shadow-lg z-50 slide-up">
           {notification}
         </div>
       )}
@@ -275,7 +221,7 @@ export default function App() {
 
       {showUpload && (
         <div className="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-4 fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-semibold mb-1">
                 Excel File
@@ -310,6 +256,20 @@ export default function App() {
                 onChange={handleDetectedUpload}
                 className="file-input"
               />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1">
+                Download Log
+              </label>
+              <button
+                onClick={() =>
+                  (window.location.href =
+                    "http://localhost:5000/download-axon-changes")
+                }
+                className="btn btn-secondary w-full"
+              >
+                Download
+              </button>
             </div>
           </div>
         </div>
@@ -405,9 +365,10 @@ export default function App() {
                           <strong>Original Type:</strong>{" "}
                           {metadataRow.axon_type}
                         </p>
-                        {lastSavedAxonType && (
+                        {axonTypeChanges[metadataRow.axon_id] && (
                           <p>
-                            <strong>New Type:</strong> {lastSavedAxonType}
+                            <strong>New Type:</strong>{" "}
+                            {axonTypeChanges[metadataRow.axon_id]}
                           </p>
                         )}
                       </>
@@ -461,17 +422,6 @@ export default function App() {
                 >
                   {isSaving ? "Saving..." : "Save Changes"}
                 </button>
-                {currentIndex === imagePairs.length - 1 && (
-                  <button
-                    onClick={() =>
-                      (window.location.href =
-                        "http://localhost:5000/download-axon-changes")
-                    }
-                    className="btn btn-success w-full"
-                  >
-                    Download Log
-                  </button>
-                )}
               </div>
             </div>
           </div>
